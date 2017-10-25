@@ -1,0 +1,152 @@
+---
+title: "Data Science Capstone Project Milestone Report"
+author: "Abdullah Albyati"
+date: "October 24, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+# Introduction
+
+In this project I will display my understanding of the data set and provide reproducible steps to download, tidy, summarize, and visualize the text data. 
+
+# The Data
+The data set is located [here](https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip)
+
+1. Setting up the work space
+```{r setup-work-space}
+setwd("~/Data-Science-Capstone-Week2")
+library(tidytext)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(wordcloud)
+```
+
+2. Downloading, extracting, and reading the text data
+```{r downloading-data}
+download.file("https://d396qusza40orc.cloudfront.net/dsscapstone/dataset/Coursera-SwiftKey.zip", destfile = "Coursera-SwiftKey.zip", quiet=TRUE)
+unzip("Coursera-SwiftKey.zip")
+blogs <- readLines("./final/en_US/en_US.blogs.txt", encoding = "UTF-8", skipNul=TRUE)
+news <- readLines("./final/en_US/en_US.news.txt", encoding = "UTF-8", skipNul=TRUE)
+twitter <- readLines("./final/en_US/en_US.twitter.txt", encoding = "UTF-8", skipNul=TRUE)
+```
+
+3. Preparing the data for Analysis
+   I will be using the [tidytext package](https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html) which uses the tidy data principles to work with text data. The tidy text package puts the text data into a tibble data frame format. In order to conduct analysis using tidytext the text must be in tidy text format which is according to the creators of tidytext, Julia Silge & David Robinson;
+
+>"We thus define the tidy text format as being a table with one-token-per-row. A token is a           meaningful unit of text, such as a word, that we are interested in using for analysis, and             tokenization is the process of splitting text into tokens. This one-token-per-row structure            is in contrast to the ways text is often stored in current analyses, perhaps as strings or            in a document-term matrix. For tidy text mining, the token that is stored in each row is               most often a single word, but can also be an n-gram, sentence, or paragraph."
+            
+```{r tidy-text}
+#Remove numbers from the text to get accurate text analysis
+news <- gsub('[0-9]+', '', news)
+blogs <- gsub('[0-9]+', '', blogs)
+twitter <- gsub('[0-9]+', '', twitter)
+
+# convert the text data into a tabble
+news_df <- data_frame(text = news)
+blogs_df <- data_frame(text = blogs)
+twitter_df <- data_frame(text = twitter)
+
+# now we tokenize the data into a tabble with 1 word per row
+news_tidy <- news_df %>% unnest_tokens(word, text)
+blogs_tidy <- blogs_df %>% unnest_tokens(word, text)
+twitter_tidy <- twitter_df %>% unnest_tokens(word, text)
+```
+
+# Analysis
+I will do a basic text analysis on the text sets to include word frequencies and diagrams using the tidytext and ggplot2 packages
+
+## Word Frequencies
+  In order to get accurate word frequencies we must filter out **stop words**, which are words that are not useful for an analysis, common words like "the," "of," "to," and so on. To filter these words we use tidyr anti_joint function combined with tidytext stop_words built-in table. Before we do that I will demonstrate the word frequency without removing the stop words;
+  
+```{r word-Freq-With-Stop-Words}
+news_tidy %>% count(word, sort = TRUE)
+```
+
+We see in the results above that the highest frequency words are stop words that should be removed to get more meaningful results
+
+```{r word-freq-without-stop-words}
+data("stop_words")
+news_tidy <- news_tidy %>% anti_join(stop_words)
+news_tidy %>% count(word, sort = TRUE)
+
+blogs_tidy <- blogs_tidy %>% anti_join(stop_words)
+blogs_tidy %>% count(word, sort = TRUE)
+
+twitter_tidy <- twitter_tidy %>% anti_join(stop_words)
+twitter_tidy %>% count(word, sort = TRUE)
+```
+
+## Visulazing The Words
+Because I am using tidytext package I can easily pipe the results into ggplot package for visualization
+
+```{r plots}
+news_tidy %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 2000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = n)) +
+  ggtitle("Word Frequency Count For The News Text Set") +
+  theme(plot.title = element_text(color="blue", size=14, face="bold.italic")) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+
+blogs_tidy %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 28000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = n)) +
+  ggtitle("Word Frequency Count For The Blogs Text Set") +
+  theme(plot.title = element_text(color="blue", size=14, face="bold.italic")) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+
+twitter_tidy %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 41000) %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = n)) +
+  ggtitle("Word Frequency Count For The Twitter Text Set") +
+  theme(plot.title = element_text(color="blue", size=14, face="bold.italic")) +
+  geom_col() +
+  xlab(NULL) +
+  coord_flip()
+```
+
+Lets do some more plots (I love plots) this time we will be using wordcloud package 
+
+```{r wordcloudplot}
+news_tidy %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+blogs_tidy %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+
+twitter_tidy %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+## Summary
+As we can see in the analysis above that cleaning, and preparing the data is important to create an accurate text analysis and to provide good diagrams and accurate word counts. 
+
+## The Next Step
+I believe my next move is to dive deeper into the text and further clean the text sets. Also in I will be working on relationship between words, N-grams, and correlations to prepare the set for the final word prediction project.
+
+
+
